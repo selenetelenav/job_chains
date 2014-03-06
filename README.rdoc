@@ -1,0 +1,3 @@
+= JobChains
+
+Augment Sidekiq and Resque workers with perform pre- and post-conditions
