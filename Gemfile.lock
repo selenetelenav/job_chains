@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    job-chains (0.0.1)
+    job_chains (0.0.1)
       rails (~> 3.1.12)
 
 GEM
@@ -94,6 +94,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  job-chains!
+  job_chains!
   jquery-rails
   sqlite3
