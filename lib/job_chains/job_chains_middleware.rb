@@ -12,7 +12,7 @@ class JobChainsMiddleware
       args = msg["args"] || []
       return unless check_preconditions(worker, args)
       yield
-      check_postconditions
+      check_postconditions(worker, args)
     end
   end
   
@@ -25,7 +25,12 @@ class JobChainsMiddleware
       params = {}
       args << params
     end
-    attempts = params['precondition_checks'].try(:to_i) || 1
+    
+    begin
+      attempts = params['precondition_checks'].to_i
+    rescue
+      attempts = 1
+    end
 
     unless before_passed?(worker)
       attempts += 1

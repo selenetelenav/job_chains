@@ -16,10 +16,12 @@ Gem::Specification.new do |s|
   s.files = Dir["{app,config,db,lib}/**/*"] + ["MIT-LICENSE", "Rakefile", "README.rdoc"]
   s.test_files = Dir["test/**/*"]
 
-  s.add_dependency "rails"
+  s.add_dependency 'rails'
   s.add_dependency 'honeybadger'
   s.add_dependency 'resque'
-  s.add_dependency 'sidekiq-pro'
+  s.add_dependency 'sidekiq'
 
-  s.add_development_dependency "sqlite3"
+  s.add_development_dependency 'rspec'
+  s.add_development_dependency 'rspec-rails'
+  s.add_development_dependency 'rspec-sidekiq'
 end
