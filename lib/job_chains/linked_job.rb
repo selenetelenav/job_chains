@@ -1,12 +1,18 @@
 module LinkedJob
-  CHECK_ATTEMPTS = 3
-
   def before
     true
   end
   
   def after
     true
+  end
+
+  def check_attempts
+    3
+  end
+  
+  def retry_seconds
+    300
   end
   
   # Check preconditions in Resque jobs
@@ -20,13 +26,13 @@ module LinkedJob
     attempts = params['precondition_checks'].try(:to_i) || 1
     unless before_passed?
       attempts += 1
-      if attempts > CHECK_ATTEMPTS
+      if attempts > check_attempts
         error_message = "Attempted #{self}, but preconditions were never met!"
         Honeybadger.notify(:error_message => error_message, :parameters => {:args => args})
       else
         params['precondition_checks'] = attempts
-        Resque.enqueue_in(5.minutes, self, *args)
-        Rails.logger.info("Pre-conditions for #{self} failed, delaying by 5 minutes.")
+        Resque.enqueue_in(retry_seconds, self, *args)
+        Rails.logger.info("Pre-conditions for #{self} failed, delaying by #{retry_seconds} seconds.")
       end
       raise Resque::Job::DontPerform
     end
@@ -35,8 +41,8 @@ module LinkedJob
   # Check postconditions in Resque jobs
   def after_perform_check_postconditions(*args)
     attempts = 1
-    attempts += 1 until attempts > CHECK_ATTEMPTS || after_passed?
-    if attempts > CHECK_ATTEMPTS
+    attempts += 1 until attempts > check_attempts || after_passed?
+    if attempts > check_attempts
       error_message = "Finished #{self}, but postconditions failed!"
       Honeybadger.notify(:error_message => error_message, :parameters => {:args => args})
     end
