@@ -3,6 +3,16 @@ require 'spec_helper'
 describe LinkedJob do 
   class DummyLinkedJob
     extend LinkedJob
+
+    class << self
+      def check_attempts
+        5
+      end
+
+      def retry_seconds
+        10
+      end
+    end
   end 
 
   describe "#before_perform_check_preconditions" do
@@ -16,7 +26,7 @@ describe LinkedJob do
       it "should enqueue for later and raise DontPerform" do
         DummyLinkedJob.should_receive(:before).and_return(false)
         Honeybadger.should_not_receive(:notify)
-        Resque.should_receive(:enqueue_in).with(5.minutes, DummyLinkedJob, 'precondition_checks' => 2)
+        Resque.should_receive(:enqueue_in).with(10.seconds, DummyLinkedJob, 'precondition_checks' => 2)
         expect {
           DummyLinkedJob.before_perform_check_preconditions('precondition_checks' => '1')
         }.to raise_error Resque::Job::DontPerform
@@ -28,7 +38,7 @@ describe LinkedJob do
         Honeybadger.should_receive(:notify)
         Resque.should_not_receive(:enqueue_in)
         expect {
-          DummyLinkedJob.before_perform_check_preconditions('precondition_checks' => '3')
+          DummyLinkedJob.before_perform_check_preconditions('precondition_checks' => '5')
         }.to raise_error Resque::Job::DontPerform
       end
     end
@@ -51,7 +61,7 @@ describe LinkedJob do
     end    
     context "when after block fails" do
       it "should notify Honeybadger" do
-        DummyLinkedJob.should_receive(:after).exactly(3).times.and_return(false)
+        DummyLinkedJob.should_receive(:after).exactly(5).times.and_return(false)
         Honeybadger.should_receive(:notify)
         DummyLinkedJob.after_perform_check_postconditions
       end

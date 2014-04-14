@@ -14,6 +14,14 @@ describe JobChainsMiddleware do
       true
     end
     
+    def check_attempts
+      5
+    end
+
+    def retry_seconds
+      10
+    end
+    
     def perform
       
     end
@@ -67,7 +75,7 @@ describe JobChainsMiddleware do
       it "should enqueue for later and return false" do
         @worker.should_receive(:before).and_return(false)
         Honeybadger.should_not_receive(:notify)
-        Sidekiq::Client.should_receive(:enqueue_in).with(300.seconds, DummySidekiqWorker, 'precondition_checks' => 2)
+        Sidekiq::Client.should_receive(:enqueue_in).with(10.seconds, DummySidekiqWorker, 'precondition_checks' => 2)
         subject.check_preconditions(@worker, ['precondition_checks' => '1']).should be_false
       end
     end
@@ -76,7 +84,7 @@ describe JobChainsMiddleware do
         @worker.should_receive(:before).and_return(false)
         Honeybadger.should_receive(:notify)
         Sidekiq::Client.should_not_receive(:enqueue_in)
-        subject.check_preconditions(@worker, ['precondition_checks' => '3']).should be_false
+        subject.check_preconditions(@worker, ['precondition_checks' => '5']).should be_false
       end
     end
   end
@@ -100,7 +108,7 @@ describe JobChainsMiddleware do
     end    
     context "when after block fails" do
       it "should notify Honeybadger and return false" do
-        @worker.should_receive(:after).exactly(3).times.and_return(false)
+        @worker.should_receive(:after).exactly(5).times.and_return(false)
         Honeybadger.should_receive(:notify)
         subject.check_postconditions(@worker, [{}]).should be_false
       end
