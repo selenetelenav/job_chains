@@ -1,88 +1,69 @@
 class JobChainsMiddleware
-  def initialize(options = {})
-    @check_attempts = options[:attempts] || 3
-    @retry_seconds = options[:retry_seconds] || 300
-  end
+  # Sidekiq default
+  DEFAULT_MAX_RETRY_ATTEMPTS = 25
   
   def call(worker, msg, queue)
     if worker.kind_of? Sidekiq::Extensions::DelayedClass
       # No handling for delayed jobs
       yield
     else
-      args = msg["args"] || []
-      return unless check_preconditions(worker, args)
+      check_preconditions(worker, msg)
       yield
-      check_postconditions(worker, args)
+      check_postconditions(worker, msg)
     end
   end
   
   # Check preconditions in Sidekiq jobs
-  def check_preconditions(worker, args = [])
-    return true unless worker.respond_to? :before
-    if args[-1].kind_of?(Hash)
-      params = args[-1]
-    else
-      params = {}
-      args << params
-    end
-    
-    begin
-      attempts = params['precondition_checks'].to_i
-    rescue
-      attempts = 1
-    end
+  def check_preconditions(worker, msg)
+    return unless worker.respond_to? :before
+    return if msg['skip_before'].to_s.downcase == 'true'
 
-    unless before_passed?(worker)
-      attempts += 1
-      check_attempts = check_attempts(worker)
-      if attempts > check_attempts
-        error_message = "Attempted #{worker.class} #{check_attempts} times, but preconditions were never met!"
-        Honeybadger.notify(:error_message => error_message, :parameters => {:args => args})
+    args = msg['args'] || []
+    unless before_passed?(worker, args)
+      max_retries = msg['retry'].try(:to_i) || DEFAULT_MAX_RETRY_ATTEMPTS
+      retry_count = msg['retry_count'].try(:to_i) || 0
+      msg['retry_count'] = retry_count + 1
+      
+      last_try = retry_count >= max_retries - 1
+
+      if last_try
+        raise "Attempted #{worker.class}, but preconditions were never met!"
       else
-        retry_duration = retry_seconds(worker)
-        params['precondition_checks'] = attempts
-        Sidekiq::Client.enqueue_in(retry_duration.seconds, worker.class, *args)
-        Rails.logger.info("Pre-conditions for #{worker.class} failed, delaying by #{retry_duration} seconds.")
+        error_message = "Pre-conditions for #{worker.class}(#{args.join(',')}) failed."
+        Rails.logger.info(error_message)
+        # Will cause Honeybadger to ignore the error, but Sidekiq will retry the task
+        raise SilentSidekiqError.new(error_message)
       end
-      return false
     end
-    true
   end
   
   # Check postconditions in Sidekiq jobs
-  def check_postconditions(worker, args)
-    return true unless worker.respond_to? :after
+  def check_postconditions(worker, msg)
+    return unless worker.respond_to? :after
+    return if msg['skip_after'].to_s.downcase == 'true'
+    
+    args = msg['args'] || []
+    max_retries = msg['retry'].try(:to_i) || DEFAULT_MAX_RETRY_ATTEMPTS
     attempts = 1
-    check_attempts = check_attempts(worker)
-    attempts += 1 until attempts > check_attempts || after_passed?(worker)
-    if attempts > check_attempts
+    attempts += 1 until attempts > max_retries || after_passed?(worker, args)
+    if attempts > max_retries
       error_message = "Finished #{worker.class}, but postconditions failed!"
-      Honeybadger.notify(:error_message => error_message, :parameters => {:args => args})
-      return false
+      Honeybadger.notify(error_class: worker.class, error_message: error_message, parameters: {:args => args})
     end
-    true
   end
   
   private
-  def before_passed?(worker)
-    worker.before
+  def before_passed?(worker, args)
+    worker.before(*args)
   rescue => e
-    Honeybadger.notify(e)
+    Honeybadger.notify(error_class: worker.class, error_message: "Before hook threw error: #{e.message}", parameters: {:args => args })
     false
   end
 
-  def after_passed?(worker)
-    worker.after
+  def after_passed?(worker, args)
+    worker.after(*args)
   rescue
-    Honeybadger.notify(e)
+    Honeybadger.notify(error_class: worker.class, error_message: "After hook threw error: #{e.message}", parameters: {:args => args })
     false
-  end
-  
-  def retry_seconds(worker)
-    (worker.respond_to? :retry_seconds) ? worker.retry_seconds : @retry_seconds
-  end
-  
-  def check_attempts(worker)
-    (worker.respond_to? :check_attempts) ? worker.check_attempts : @check_attempts
   end
 end
