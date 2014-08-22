@@ -4,7 +4,7 @@ describe JobChainsMiddleware do
   subject { JobChainsMiddleware.new }
   
   class DummySidekiqWorker
-    extend Sidekiq::Worker
+    include Sidekiq::Worker
     
     def before
       true
