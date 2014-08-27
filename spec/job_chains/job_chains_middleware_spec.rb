@@ -36,7 +36,7 @@ describe JobChainsMiddleware do
       end
       context "when the precondition check passes" do
         it "should yield and do postcondition check" do
-          subject.should_receive(:check_preconditions)
+          subject.should_receive(:check_preconditions).and_return(true)
           @worker.should_receive(:perform)
           subject.should_receive(:check_postconditions)
           subject.call(@worker, {}, 'default') { @worker.perform }
@@ -78,9 +78,9 @@ describe JobChainsMiddleware do
       end
     end
     context "when before block passes" do
-      it "should not raise an error" do
+      it "should return true and not raise an error" do
         @worker.should_receive(:before).and_return(true)
-        subject.check_preconditions(@worker, {})
+        subject.check_preconditions(@worker, {}).should be_true
       end
     end
     context "when before block returns false on the first attempt" do
@@ -93,12 +93,20 @@ describe JobChainsMiddleware do
       end
     end
     context "when before block returns false on the last attempt" do
-      it "should not log and raise a RuntimeError" do
-        @worker.should_receive(:before).and_return(false)
-        Rails.logger.should_not_receive(:info)
-        expect {
-          subject.check_preconditions(@worker, 'retry_count' => '5', 'retry' => '5')
-        }.to raise_error("Attempted #{@worker.class}, but preconditions were never met!")
+      before { @worker.should_receive(:before).and_return(false) }
+      context "when worker does not have before_failed defined" do
+        it "should not log and raise a RuntimeError" do
+          Rails.logger.should_not_receive(:info)
+          expect {
+            subject.check_preconditions(@worker, 'retry_count' => '5', 'retry' => '5')
+          }.to raise_error("Attempted #{@worker.class}, but preconditions were never met!")
+        end
+      end
+      context "when worker has before_failed defined" do
+        it "should return false and call before_failed" do
+          @worker.should_receive(:before_failed)
+          subject.check_preconditions(@worker, 'retry_count' => '5', 'retry' => '5').should be_false
+        end
       end
     end
     context "when before block throws an error on the first attempt" do
