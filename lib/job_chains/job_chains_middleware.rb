@@ -7,9 +7,10 @@ class JobChainsMiddleware
       # No handling for delayed jobs
       yield
     else
-      check_preconditions(worker, msg)
-      yield
-      check_postconditions(worker, msg)
+      if check_preconditions(worker, msg)
+        yield
+        check_postconditions(worker, msg)
+      end
     end
   end
   
@@ -19,7 +20,9 @@ class JobChainsMiddleware
     return if msg['skip_before'].to_s.downcase == 'true'
 
     args = msg['args'] || []
-    unless before_passed?(worker, args)
+    if before_passed?(worker, args)
+      return true
+    else
       max_retries = msg['retry'].try(:to_i) || DEFAULT_MAX_RETRY_ATTEMPTS
       retry_count = msg['retry_count'].try(:to_i) || 0
       msg['retry_count'] = retry_count + 1
@@ -27,13 +30,14 @@ class JobChainsMiddleware
       last_try = retry_count >= max_retries - 1
 
       if last_try
-        raise "Attempted #{worker.class}, but preconditions were never met!"
+        worker.respond_to?(:before_failed) ? worker.before_failed : raise("Attempted #{worker.class}, but preconditions were never met!")
       else
         error_message = "Pre-conditions for #{worker.class}(#{args.join(',')}) failed."
         Rails.logger.info(error_message)
         # Will cause Honeybadger to ignore the error, but Sidekiq will retry the task
         raise SilentSidekiqError.new(error_message)
       end
+      return false
     end
   end
   
