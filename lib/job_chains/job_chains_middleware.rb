@@ -16,8 +16,8 @@ class JobChainsMiddleware
   
   # Check preconditions in Sidekiq jobs
   def check_preconditions(worker, msg)
-    return unless worker.respond_to? :before
-    return if msg['skip_before'].to_s.downcase == 'true'
+    return true unless worker.respond_to? :before
+    return true if msg['skip_before'].to_s.downcase == 'true'
 
     args = msg['args'] || []
     if before_passed?(worker, args)
