@@ -30,9 +30,9 @@ class JobChainsMiddleware
       last_try = retry_count >= max_retries - 1
 
       if last_try
-        worker.respond_to?(:before_failed) ? worker.before_failed : raise("Attempted #{worker.class}, but preconditions were never met!")
+        worker.respond_to?(:before_failed) ? worker.before_failed : raise("Attempted #{worker.class.name}, but preconditions were never met!")
       else
-        error_message = "Pre-conditions for #{worker.class}(#{msg['args'].join(',')}) failed."
+        error_message = "Pre-conditions for #{worker.class.name}(#{msg['args'].join(',')}) failed."
         Rails.logger.info(error_message)
         # Will cause Honeybadger to ignore the error, but Sidekiq will retry the task
         raise SilentSidekiqError.new(error_message)
@@ -50,8 +50,8 @@ class JobChainsMiddleware
     attempts = 1
     attempts += 1 until attempts > max_retries || after_passed?(worker, msg)
     if attempts > max_retries
-      error_message = "Finished #{worker.class}, but postconditions failed!"
-      Honeybadger.notify_or_ignore(error_class: worker.class, error_message: error_message, parameters: msg)
+      error_message = "Finished #{worker.class.name}, but postconditions failed!"
+      Honeybadger.notify_or_ignore(error_class: worker.class.name, error_message: error_message, parameters: msg)
     end
   end
   
@@ -59,14 +59,14 @@ class JobChainsMiddleware
   def before_passed?(worker, msg)
     worker.before(*msg['args'])
   rescue => e
-    Honeybadger.notify_or_ignore(error_class: worker.class, error_message: "Before hook threw error: #{e.message}", parameters: msg)
+    Honeybadger.notify_or_ignore(error_class: worker.class.name, error_message: "Before hook threw error: #{e.message}", parameters: msg)
     false
   end
 
   def after_passed?(worker, msg)
     worker.after(*msg['args'])
   rescue => e
-    Honeybadger.notify_or_ignore(error_class: worker.class, error_message: "After hook threw error: #{e.message}", parameters: msg)
+    Honeybadger.notify_or_ignore(error_class: worker.class.name, error_message: "After hook threw error: #{e.message}", parameters: msg)
     false
   end
 end
