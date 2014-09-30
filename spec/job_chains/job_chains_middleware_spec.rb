@@ -112,7 +112,7 @@ describe JobChainsMiddleware do
     context "when before block throws an error on the first attempt" do
       it "should notify Honeybadger and raise a SilentSidekiqError" do
         @worker.should_receive(:before).and_raise('Runtime Error')
-        Honeybadger.should_receive(:notify)
+        Honeybadger.should_receive(:notify_or_ignore)
         expect {
           subject.check_preconditions(@worker, 'retry_count' => '1', 'retry' => '5', 'args' => [])
         }.to raise_error(SilentSidekiqError)
@@ -121,7 +121,7 @@ describe JobChainsMiddleware do
     context "when before block throws an error on the last attempt" do
       it "should notify Honeybadger and raise a Runtime Error" do
         @worker.should_receive(:before).and_raise('Runtime Error')
-        Honeybadger.should_receive(:notify)
+        Honeybadger.should_receive(:notify_or_ignore)
         expect {
           subject.check_preconditions(@worker, 'retry_count' => '5', 'retry' => '5', 'args' => [])
         }.to raise_error("Attempted #{@worker.class}, but preconditions were never met!")
@@ -155,7 +155,7 @@ describe JobChainsMiddleware do
     context "when after block fails max number of retries" do
       it "should notify Honeybadger and return false" do
         @worker.should_receive(:after).exactly(5).times.and_return(false)
-        Honeybadger.should_receive(:notify)
+        Honeybadger.should_receive(:notify_or_ignore)
         subject.check_postconditions(@worker, 'retry' => '5', 'args' => []).should be_false
       end
     end    
