@@ -158,6 +158,26 @@ describe JobChainsMiddleware do
         Honeybadger.should_receive(:notify_or_ignore)
         subject.check_postconditions(@worker, 'retry' => '5', 'args' => []).should be_false
       end
+    end
+    context "should call atleast once if retry is 0 " do
+      it "should succeed" do
+        @worker.should_receive(:after).and_return(true)
+        subject.check_postconditions(@worker, 'retry' => '0', 'args' => [])
+      end
+    end
+    context "should not generate error if retry is 0 " do
+      it "should succeed" do
+        @worker.should_receive(:after).and_return(true)
+        Honeybadger.should_not_receive(:notify_or_ignore)
+        subject.check_postconditions(@worker, 'retry' => '0', 'args' => [])
+      end
+    end
+    context "should generate error if retry is 0 and after job fails" do
+      it "should succeed" do
+        @worker.should_receive(:after).once.and_return(false)
+        Honeybadger.should_receive(:notify_or_ignore)
+        subject.check_postconditions(@worker, 'retry' => '0', 'args' => [])
+      end
     end    
   end
 end
