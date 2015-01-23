@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    job_chains (0.2.3)
+    job_chains (0.2.5)
       honeybadger
       rails
       resque
