@@ -154,7 +154,7 @@ describe JobChainsMiddleware do
     end    
     context "when after block fails max number of retries" do
       it "should notify Honeybadger and return false" do
-        @worker.should_receive(:after).exactly(5).times.and_return(false)
+        @worker.should_receive(:after).exactly(6).times.and_return(false)
         Honeybadger.should_receive(:notify_or_ignore)
         subject.check_postconditions(@worker, 'retry' => '5', 'args' => []).should be_false
       end
