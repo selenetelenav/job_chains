@@ -48,7 +48,7 @@ class JobChainsMiddleware
 
     max_retries = msg['retry'].try(:to_i) || DEFAULT_MAX_RETRY_ATTEMPTS
     attempts = 1
-    attempts += 1 until attempts > max_retries || after_passed?(worker, msg)
+    attempts += 1 until after_passed?(worker, msg) || attempts > max_retries
     if attempts > max_retries
       error_message = "Finished #{worker.class.name}, but postconditions failed!"
       Honeybadger.notify_or_ignore(error_class: worker.class.name, error_message: error_message, parameters: msg)
