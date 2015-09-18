@@ -19,13 +19,11 @@ class JobChainsMiddleware
     return true unless worker.respond_to? :before
     return true if msg['skip_before'].to_s.downcase == 'true'
 
-
     if before_passed?(worker, msg)
       return true
     else
       max_retries = msg['retry'].try(:to_i) || DEFAULT_MAX_RETRY_ATTEMPTS
       retry_count = msg['retry_count'].try(:to_i) || 0
-      msg['retry_count'] = retry_count + 1
       
       last_try = retry_count >= max_retries - 1
 
