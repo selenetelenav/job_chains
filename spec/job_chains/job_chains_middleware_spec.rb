@@ -88,7 +88,7 @@ describe JobChainsMiddleware do
         @worker.should_receive(:before).and_return(false)
         Rails.logger.should_receive(:info)
         expect {
-          subject.check_preconditions(@worker, 'retry_count' => '1', 'retry' => '5', 'args' => [])
+          subject.check_preconditions(@worker, 'retry_count' => '1', 'retry' => '4', 'args' => [])
         }.to raise_error(SilentSidekiqError)
       end
     end
@@ -98,14 +98,14 @@ describe JobChainsMiddleware do
         it "should not log and raise a RuntimeError" do
           Rails.logger.should_not_receive(:info)
           expect {
-            subject.check_preconditions(@worker, 'retry_count' => '5', 'retry' => '5', 'args' => [])
+            subject.check_preconditions(@worker, 'retry_count' => '4', 'retry' => '4', 'args' => [])
           }.to raise_error("Attempted #{@worker.class}, but preconditions were never met!")
         end
       end
       context "when worker has before_failed defined" do
         it "should return false and call before_failed" do
           @worker.should_receive(:before_failed)
-          subject.check_preconditions(@worker, 'retry_count' => '5', 'retry' => '5', 'args' => []).should be_false
+          subject.check_preconditions(@worker, 'retry_count' => '4', 'retry' => '4', 'args' => []).should be_false
         end
       end
     end
@@ -114,7 +114,7 @@ describe JobChainsMiddleware do
         @worker.should_receive(:before).and_raise('Runtime Error')
         Honeybadger.should_receive(:notify_or_ignore)
         expect {
-          subject.check_preconditions(@worker, 'retry_count' => '1', 'retry' => '5', 'args' => [])
+          subject.check_preconditions(@worker, 'retry_count' => '1', 'retry' => '4', 'args' => [])
         }.to raise_error(SilentSidekiqError)
       end
     end
@@ -123,7 +123,7 @@ describe JobChainsMiddleware do
         @worker.should_receive(:before).and_raise('Runtime Error')
         Honeybadger.should_receive(:notify_or_ignore)
         expect {
-          subject.check_preconditions(@worker, 'retry_count' => '5', 'retry' => '5', 'args' => [])
+          subject.check_preconditions(@worker, 'retry_count' => '4', 'retry' => '4', 'args' => [])
         }.to raise_error("Attempted #{@worker.class}, but preconditions were never met!")
       end
     end
@@ -142,21 +142,21 @@ describe JobChainsMiddleware do
     context "when after block passes" do
       it "should succeed" do
         @worker.should_receive(:after).and_return(true)
-        subject.check_postconditions(@worker, 'retry' => '5', 'args' => [])
+        subject.check_postconditions(@worker, 'retry' => '4', 'args' => [])
       end
     end
     context "when after block fails then passes within max retires" do
       it "should succeed and not notify Honeybadger" do
         @worker.should_receive(:after).twice.and_return(false, true)
         Honeybadger.should_not_receive(:notify)
-        subject.check_postconditions(@worker, 'retry' => '5', 'args' => [])
+        subject.check_postconditions(@worker, 'retry' => '4', 'args' => [])
       end
     end    
     context "when after block fails max number of retries" do
       it "should notify Honeybadger and return false" do
         @worker.should_receive(:after).exactly(6).times.and_return(false)
         Honeybadger.should_receive(:notify_or_ignore)
-        subject.check_postconditions(@worker, 'retry' => '5', 'args' => []).should be_false
+        subject.check_postconditions(@worker, 'retry' => '4', 'args' => []).should be_false
       end
     end
     context "should call atleast once if retry is 0 " do
