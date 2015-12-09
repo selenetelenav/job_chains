@@ -62,14 +62,18 @@ class JobChainsMiddleware
   def before_passed?(worker, msg)
     worker.before(*msg['args'])
   rescue => e
-    Honeybadger.notify_or_ignore(error_class: worker.class.name, error_message: "Before hook threw error: #{e.message}", parameters: msg)
+    Honeybadger.notify_or_ignore(error_class: worker.class.name, 
+      error_message: "Before hook threw error: #{e.message}", 
+      parameters: {job: msg, backtrace: e.backtrace} )
     false
   end
 
   def after_passed?(worker, msg)
     worker.after(*msg['args'])
   rescue => e
-    Honeybadger.notify_or_ignore(error_class: worker.class.name, error_message: "After hook threw error: #{e.message}", parameters: msg)
+    Honeybadger.notify_or_ignore(error_class: worker.class.name, 
+      error_message: "After hook threw error: #{e.message}", 
+      parameters: {job: msg, backtrace: e.backtrace} )
     false
   end
 end
